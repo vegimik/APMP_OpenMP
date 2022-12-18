@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Source Files\Results">
+      <UniqueIdentifier>{7dbabbc9-6d83-453f-9153-7e6085f7c47c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="OpenMP_Examples_Tester.cpp">
@@ -27,5 +30,16 @@
     <ClCompile Include="OpenMP_Examples_Tester_OLD.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\..\..\..\..\Downloads\assignment2_parallel.png">
+      <Filter>Source Files</Filter>
+    </Image>
+    <Image Include="..\..\..\..\..\Downloads\assignment2_parallel2.png">
+      <Filter>Source Files</Filter>
+    </Image>
+    <Image Include="..\..\..\..\..\Downloads\assignment2_sequential.png">
+      <Filter>Source Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

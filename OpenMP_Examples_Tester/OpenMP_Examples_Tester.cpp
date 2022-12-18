@@ -48,9 +48,9 @@ void assignment2_sequential(float** a, int size)
 //do parallelization of Assignemnt2 business logic decomposition
 //a is the matrix 
 //array size for all is size x size
-void assignment2_parallel(float** a, int size)
+void assignment2_parallel(float** a, int size, int numberOfThreads = 64)
 {
-	omp_set_num_threads(4);
+	omp_set_num_threads(numberOfThreads);
 	int iteration, innerItteration;
 	for (iteration = 1; iteration <= size; iteration++)
 	{
@@ -59,17 +59,13 @@ void assignment2_parallel(float** a, int size)
 		{
 			int row = innerItteration;
 			int col = iteration - innerItteration + 1;
-			if (row >= size || col >= size)
-				continue;
-			a[row][col] = (
-				abs(sin(a[row - 1][col - 1]))
-				+ abs(sin(a[row][col - 1]))
-				+ abs(sin(a[row - 1][col]))
-				) * 100;
-
+			if (!(row >= size || col >= size))
+				a[row][col] = (
+					abs(sin(a[row - 1][col - 1]))
+					+ abs(sin(a[row][col - 1]))
+					+ abs(sin(a[row - 1][col]))
+					) * 100;
 		}
-
-
 	}
 
 }
@@ -78,18 +74,20 @@ void assignment2_parallel(float** a, int size)
 //do parallelization of Assignemnt2 business logic decomposition
 //a is the matrix 
 //array size for all is size x size
-void assignment2_parallel2(float** a, int size)
+void assignment2_parallel2(float** a, int size, int numberOfThreads = 64)
 {
-	omp_set_num_threads(64);
+	omp_set_num_threads(numberOfThreads);
 	int iteration, innerItteration;
 	for (iteration = 1; iteration <= size; iteration++)
 	{
-#pragma omp parallel for shared(iteration) private(innerItteration) schedule(static, 8)
+
+		//#pragma omp parallel for shared(iteration) private(innerItteration) schedule(static, 8)
+#pragma omp  parallel for  shared(iteration)  private(innerItteration) schedule(static, 8)
 		for (innerItteration = iteration; innerItteration >= 1; innerItteration--)
 		{
 			int row = innerItteration;
 			int col = iteration - innerItteration + 1;
-			int priority = row + col + abs(row - col);
+			int priority = row + col;// +abs(row - col);
 			//int shouldBeCreatedTask = !(row >= size || col >= size) ? 1 : 0;
 			/*if(shouldBeCreatedTask)*/
 #pragma omp task firstprivate(row, col, priority) priority(priority)
@@ -105,7 +103,7 @@ void assignment2_parallel2(float** a, int size)
 			}
 		}
 		//#pragma omp taskyield
-
+		//		cout << "Iteration: " << iteration << endl;
 
 	}
 
@@ -140,7 +138,7 @@ int main(int argc, char** argv)
 	matrix_fill(matrixSequential, matrixParallelizationMathod1, matrixParallelizationMathod2, size);
 
 	//cout << "Matrix: " << endl;
-	//print_matrix_2D(a, size);
+	//print_matrix_2D(matrixSequential, size);
 
 #pragma region Sequential
 	//do Computation
@@ -186,9 +184,11 @@ int main(int argc, char** argv)
 	double differnce2 = runtime - runtimeInParallelMode2;
 	cout << "Diferences betweeen modes (Sequential vs Paralelization[Method 1] are: " << abs(differnce) << " seconds in favor of " << (differnce > 0 ? "parallel " : "sequential ") << "mode." << endl;
 	cout << "Diferences betweeen modes (Sequential vs Paralelization[Method 2] are: " << abs(differnce2) << " seconds in favor of " << (differnce2 > 0 ? "parallel " : "sequential ") << "mode." << endl;
-	
+
 	cout << "Result of computed matrices (Sequential vs Paralelization_Method_1 seems " << (compareMatrices(matrixSequential, matrixParallelizationMathod1, size, 10) == 1 ? "valid " : "NOT valid ") << endl;
-	cout << "Result of computed matrices (Sequential vs Paralelization_Method_2 seems " << (compareMatrices(matrixSequential, matrixParallelizationMathod2, size, 10) == 1 ? "valid " : "NOT valid ") << endl;
+	//cout << "Result of computed matrices (Sequential vs Paralelization_Method_2 seems " << (compareMatrices(matrixSequential, matrixParallelizationMathod2, size, 10) == 1 ? "valid " : "NOT valid ") << endl;
+	cout << "result 1: " << compareMatrices(matrixSequential, matrixParallelizationMathod1, size, 10) << endl;
+	//cout << "result 2: " << compareMatrices(matrixSequential, matrixParallelizationMathod2, size, 10) << endl;
 #pragma endregion
 
 	return 0;
@@ -281,15 +281,19 @@ double getCurrentClock() {
 
 
 bool compareMatrices(float** s_matrix, float** p_matrix, int size, int checkRandomly) {
+	bool result = true;
 	int row, col;
 	for (int indx = 0; indx < checkRandomly; indx++)
 	{
 		row = 0 + static_cast <int> (rand()) / (static_cast <int> (RAND_MAX / (size - 0)));
 		col = 0 + static_cast <int> (rand()) / (static_cast <int> (RAND_MAX / (size - 0)));
 		if (s_matrix[row][col] != p_matrix[row][col])
-			return false;
+		{
+			result = false;
+			break;
+		}
 	}
-	return true;
+	return result;
 }
 
 #pragma endregion
