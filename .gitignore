@@ -361,3 +361,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/OpenMP_Examples_Tester/Sample.cpp
+/OpenMP_Examples_Tester/OpenMP_Examples_Tester.cpp

@@ -133,6 +133,7 @@
     <ClCompile Include="OpenMP_Examples_Tester_OLD.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="..\..\..\..\..\Downloads\assignment2_float_stencil.png.png" />
     <Image Include="..\..\..\..\..\Downloads\assignment2_parallel.png" />
     <Image Include="..\..\..\..\..\Downloads\assignment2_parallel2.png" />
     <Image Include="..\..\..\..\..\Downloads\assignment2_sequential.png" />

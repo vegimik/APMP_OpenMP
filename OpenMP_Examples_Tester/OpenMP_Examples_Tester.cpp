@@ -11,6 +11,9 @@ using namespace std;
 #include <iomanip> 
 
 
+
+
+
 void print_title();
 void initialize_matrices(float** a, float** b, float** c, int size);
 void matrix_fill(float** matrix1, float** matrix2, float** matrix3, int size);
@@ -21,6 +24,7 @@ double getCurrentClock();
 void print_matrix_2D(float** matrix, int size);
 void print_matrix_header(int size);
 void print_matrix_footer(int size);
+void printArrayAsMatrix(float* matrix, int size);
 
 
 //do Assignemnt2 business logic decomposition
@@ -39,7 +43,7 @@ void assignment2_sequential(float** a, int size)
 					abs(sin(a[row - 1][col - 1]))
 					+ abs(sin(a[row][col - 1]))
 					+ abs(sin(a[row - 1][col]))
-					) * 100;
+					) * 100.0;
 		}
 	}
 
@@ -48,9 +52,8 @@ void assignment2_sequential(float** a, int size)
 //do parallelization of Assignemnt2 business logic decomposition
 //a is the matrix 
 //array size for all is size x size
-void assignment2_parallel(float** a, int size, int numberOfThreads = 64)
+void assignment2_parallel(float** a, int size)
 {
-	omp_set_num_threads(numberOfThreads);
 	int iteration, innerItteration;
 	for (iteration = 1; iteration <= size; iteration++)
 	{
@@ -64,7 +67,7 @@ void assignment2_parallel(float** a, int size, int numberOfThreads = 64)
 					abs(sin(a[row - 1][col - 1]))
 					+ abs(sin(a[row][col - 1]))
 					+ abs(sin(a[row - 1][col]))
-					) * 100;
+					) * 100.0;
 		}
 	}
 
@@ -74,20 +77,19 @@ void assignment2_parallel(float** a, int size, int numberOfThreads = 64)
 //do parallelization of Assignemnt2 business logic decomposition
 //a is the matrix 
 //array size for all is size x size
-void assignment2_parallel2(float** a, int size, int numberOfThreads = 64)
+void assignment2_parallel2(float** a, int size)
 {
-	omp_set_num_threads(numberOfThreads);
-	int iteration, innerItteration;
+	int iteration, innerItteration, row, col, priority;
 	for (iteration = 1; iteration <= size; iteration++)
 	{
 
 		//#pragma omp parallel for shared(iteration) private(innerItteration) schedule(static, 8)
-#pragma omp  parallel for  shared(iteration)  private(innerItteration) schedule(static, 8)
+#pragma omp  parallel for  shared(iteration)  private(innerItteration, row, col, priority) schedule(static, 8)
 		for (innerItteration = iteration; innerItteration >= 1; innerItteration--)
 		{
-			int row = innerItteration;
-			int col = iteration - innerItteration + 1;
-			int priority = row + col;// +abs(row - col);
+			row = innerItteration;
+			col = iteration - innerItteration + 1;
+			priority = row + col;// +abs(row - col);
 			//int shouldBeCreatedTask = !(row >= size || col >= size) ? 1 : 0;
 			/*if(shouldBeCreatedTask)*/
 #pragma omp task firstprivate(row, col, priority) priority(priority)
@@ -109,10 +111,81 @@ void assignment2_parallel2(float** a, int size, int numberOfThreads = 64)
 
 }
 
+double float_stencil9(int size) {
+
+	int i, j, iter;
+	int n = size - 2;
+	float fac = 100.0;
+
+	/* Work buffers, with halos */
+	float* a0 = (float*)malloc(sizeof(float) * size * size);
+	float* a1 = (float*)malloc(sizeof(float) * size * size);
+
+	if (a0 == NULL || a1 == NULL) {
+		/* Something went wrong in the memory allocation here, fail gracefully */
+		printf("9-point Single Precision Stencil Error: Unable to allocate memory\n");
+	}
+	if (size >= 46090) {
+		printf("The size has exceeded the maximum value!\n");
+		return 0.0;
+	}
+
+	/* use definition of the Assignment 2 for filing out the matrix with numbers. So, filling interior first row with 250 and first column with 150 */
+#pragma omp parallel for private(j)
+	for (i = 0; i < size; i++) {
+		for (j = 0; j < size; j++) {
+			if (i == 0 & j == 0)
+				a0[i * size + j] = 0.0;
+			else if (i == 0)
+				a0[i * size + j] = 250.0;
+			else if (j == 0)
+				a0[i * size + j] = 150.0;
+			else
+				a0[i * size + j] = 0.0;
+		}
+	}
+
+
+	double runtimeInParallelMode3 = omp_get_wtime();
+#pragma omp parallel
+	{
+#pragma omp for private(j)
+		for (i = 1; i < n + 1; i++) {
+			for (j = 1; j < n + 1; j++) {
+				a1[i * size + j] = (
+					abs(sin(a0[i * size + (j - 1)])) +
+					abs(sin(a0[(i - 1) * size + j])) +
+					abs(sin(a0[(i - 1) * size + (j - 1)]))
+
+					) * fac;
+			}
+		}
+
+#pragma omp for private(j)
+		for (i = 1; i < n + 1; i++) {
+			for (j = 1; j < n + 1; j++) {
+				a0[i * size + j] = a1[i * size + j];
+			}
+		}
+	}
+
+	runtimeInParallelMode3 = omp_get_wtime() - runtimeInParallelMode3;
+	//printArrayAsMatrix(a0, size);
+
+
+	free(a0);
+	free(a1);
+	return runtimeInParallelMode3;
+
+}
+
 int main(int argc, char** argv)
 {
 	//size of matrix
 	int size;
+
+	//number of threads
+	int numberOfThreads = 64;
 
 	double runtime;
 
@@ -140,6 +213,15 @@ int main(int argc, char** argv)
 	//cout << "Matrix: " << endl;
 	//print_matrix_2D(matrixSequential, size);
 
+
+#pragma region OPEN_MP ENVIRONMENT
+
+	omp_set_num_threads(numberOfThreads);
+	if (omp_get_thread_num() == 0) {
+		printf("Running on Host with %d OpenMP thread(s):\n\n", omp_get_num_threads());
+	}
+#pragma endregion
+
 #pragma region Sequential
 	//do Computation
 	runtime = omp_get_wtime();
@@ -147,13 +229,15 @@ int main(int argc, char** argv)
 	runtime = omp_get_wtime() - runtime;
 
 	//cout << "A Matrix: " << endl;
-	//print_matrix_2D(a, size);
+	//print_matrix_2D(matrixSequential, size);
 
 	cout << "Assignment 2 in sequential mode Computation Time: ";
 	cout << runtime;
 	cout << " seconds" << endl;;
 
 #pragma endregion
+
+
 
 #pragma region Parallelization METHOD 1
 	//do Computation
@@ -177,6 +261,15 @@ int main(int argc, char** argv)
 
 	cout << "Assignment 2 in parallelization mode (METHOD 2) Computation Time: " << runtimeInParallelMode2 << " seconds" << endl;;
 #pragma endregion
+#pragma region Parallelization METHOD 3
+	//do Computation
+	double runtimeInParallelMode3 = float_stencil9(size);
+
+	//cout << "Matrix from method 2: " << endl;
+	//print_matrix_2D(matrixParallelizationMathod2, size);
+
+	cout << "Assignment 3 in parallelization mode (METHOD 3) Computation Time: " << runtimeInParallelMode3 << " seconds" << endl;;
+#pragma endregion
 
 
 #pragma region Results and Conclusions
@@ -187,7 +280,7 @@ int main(int argc, char** argv)
 
 	cout << "Result of computed matrices (Sequential vs Paralelization_Method_1 seems " << (compareMatrices(matrixSequential, matrixParallelizationMathod1, size, 10) == 1 ? "valid " : "NOT valid ") << endl;
 	//cout << "Result of computed matrices (Sequential vs Paralelization_Method_2 seems " << (compareMatrices(matrixSequential, matrixParallelizationMathod2, size, 10) == 1 ? "valid " : "NOT valid ") << endl;
-	cout << "result 1: " << compareMatrices(matrixSequential, matrixParallelizationMathod1, size, 10) << endl;
+	//cout << "result 1: " << compareMatrices(matrixSequential, matrixParallelizationMathod1, size, 10) << endl;
 	//cout << "result 2: " << compareMatrices(matrixSequential, matrixParallelizationMathod2, size, 10) << endl;
 #pragma endregion
 
@@ -268,8 +361,8 @@ void matrix_fill(float** matrix1, float** matrix2, float** matrix3, int size)
 			matrix1[i][j] = 0;
 			matrix2[i][j] = 0;
 			matrix3[i][j] = 0;
-			if (i == 0 && j != 0) { matrix1[i][j] = 150; matrix2[i][j] = 150; matrix3[i][j] = 150; }
-			if (i != 0 && j == 0) { matrix1[i][j] = 250; matrix2[i][j] = 250; matrix3[i][j] = 250; }
+			if (i == 0 && j != 0) { matrix1[i][j] = 250; matrix2[i][j] = 250; matrix3[i][j] = 250; }
+			if (i != 0 && j == 0) { matrix1[i][j] = 150; matrix2[i][j] = 150; matrix3[i][j] = 150; }
 		}
 	}
 }
@@ -349,8 +442,11 @@ void print_matrix_footer(int size)
 }
 
 
+void printArrayAsMatrix(float* matrix, int size) {
+	for (int i = 0; i < 5; i++)
+		for (int j = 0; j < 5; j++)
+			cout << "Matrix[" << i << "][" << j << "]:" << matrix[i * size + j] << "\n";
+}
+
+
 #pragma endregion
-
-
-
-
