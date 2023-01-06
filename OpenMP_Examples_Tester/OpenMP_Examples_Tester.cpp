@@ -8,7 +8,8 @@ using namespace std;
 #include <time.h>
 #include <stdio.h>
 #include <cstdio>
-#include <iomanip> 
+#include <iomanip>
+#include <sstream>
 
 
 
@@ -46,18 +47,17 @@ void assignment2_sequential(float** a, int size)
 					) * 100.0;
 		}
 	}
-
 }
 
 //do parallelization of Assignemnt2 business logic decomposition
 //a is the matrix 
 //array size for all is size x size
-void assignment2_parallel(float** a, int size)
+void assignment2_parallel(float** a, int size, int scheduleThreshold)
 {
 	int iteration, innerItteration;
 	for (iteration = 1; iteration <= size; iteration++)
 	{
-#pragma omp parallel for shared(iteration) private(innerItteration) schedule(static, 16)
+#pragma omp parallel for shared(iteration) private(innerItteration) schedule(static, scheduleThreshold)
 		for (innerItteration = iteration; innerItteration >= 1; innerItteration--)
 		{
 			int row = innerItteration;
@@ -77,23 +77,24 @@ void assignment2_parallel(float** a, int size)
 //do parallelization of Assignemnt2 business logic decomposition
 //a is the matrix 
 //array size for all is size x size
-void assignment2_parallel2(float** a, int size)
+void assignment2_parallel2(float** a, int size, int scheduleThreshold)
 {
-	int iteration, innerItteration, row, col, priority;
+	int iteration, innerItteration, row, col, _priority;
 	for (iteration = 1; iteration <= size; iteration++)
 	{
 
 		//#pragma omp parallel for shared(iteration) private(innerItteration) schedule(static, 8)
-#pragma omp  parallel for  shared(iteration)  private(innerItteration, row, col, priority) schedule(static, 8)
+#pragma omp  parallel for  shared(iteration)  private(innerItteration, row, col, _priority) schedule(static, scheduleThreshold)
 		for (innerItteration = iteration; innerItteration >= 1; innerItteration--)
 		{
 			row = innerItteration;
 			col = iteration - innerItteration + 1;
-			priority = row + col;// +abs(row - col);
+			_priority = row + col;// +abs(row - col);
 			//int shouldBeCreatedTask = !(row >= size || col >= size) ? 1 : 0;
 			/*if(shouldBeCreatedTask)*/
-#pragma omp task firstprivate(row, col, priority) priority(priority)
+#pragma omp task firstprivate(row, col)
 			{
+#pragma omp priority(_priority)
 				//cout << "Mehtod 3, task Matrix[" << row << "][" << col << "], with priority = " << priority << "" << endl;
 				if (!(row >= size || col >= size))
 					a[row][col] = (
@@ -187,6 +188,9 @@ int main(int argc, char** argv)
 	//number of threads
 	int numberOfThreads = 64;
 
+	//number of scheduleThreshold
+	int scheduleThreshold = 200;
+
 	double runtime;
 
 	//seed rng
@@ -240,43 +244,43 @@ int main(int argc, char** argv)
 
 
 #pragma region Parallelization METHOD 1
-	//do Computation
+	do Computation
 	double runtimeInParallelMode1 = omp_get_wtime();
-	assignment2_parallel(matrixParallelizationMathod1, size);
+	assignment2_parallel(matrixParallelizationMathod1, size, scheduleThreshold);
 	runtimeInParallelMode1 = omp_get_wtime() - runtimeInParallelMode1;
 
-	//cout << "Matrix from method 1: " << endl;
-	//print_matrix_2D(matrixParallelizationMathod1, size);
+	cout << "Matrix from method 1: " << endl;
+	print_matrix_2D(matrixParallelizationMathod1, size);
 
 	cout << "Assignment 2 in parallelization mode (METHOD 1) Computation Time: " << runtimeInParallelMode1 << " seconds" << endl;;
 #pragma endregion
-#pragma region Parallelization METHOD 2
-	//do Computation
-	double runtimeInParallelMode2 = omp_get_wtime();
-	assignment2_parallel2(matrixParallelizationMathod2, size);
-	runtimeInParallelMode2 = omp_get_wtime() - runtimeInParallelMode2;
-
-	//cout << "Matrix from method 2: " << endl;
-	//print_matrix_2D(matrixParallelizationMathod2, size);
-
-	cout << "Assignment 2 in parallelization mode (METHOD 2) Computation Time: " << runtimeInParallelMode2 << " seconds" << endl;;
-#pragma endregion
-#pragma region Parallelization METHOD 3
-	//do Computation
-	double runtimeInParallelMode3 = float_stencil9(size);
-
-	//cout << "Matrix from method 2: " << endl;
-	//print_matrix_2D(matrixParallelizationMathod2, size);
-
-	cout << "Assignment 3 in parallelization mode (METHOD 3) Computation Time: " << runtimeInParallelMode3 << " seconds" << endl;;
-#pragma endregion
+	#pragma region Parallelization METHOD 2
+		//do Computation
+		double runtimeInParallelMode2 = omp_get_wtime();
+		assignment2_parallel2(matrixParallelizationMathod2, size, scheduleThreshold);
+		runtimeInParallelMode2 = omp_get_wtime() - runtimeInParallelMode2;
+	
+		//cout << "Matrix from method 2: " << endl;
+		//print_matrix_2D(matrixParallelizationMathod2, size);
+	
+		cout << "Assignment 2 in parallelization mode (METHOD 2) Computation Time: " << runtimeInParallelMode2 << " seconds" << endl;;
+	#pragma endregion
+	#pragma region Parallelization METHOD 3
+		//do Computation
+		double runtimeInParallelMode3 = float_stencil9(size);
+	
+		//cout << "Matrix from method 2: " << endl;
+		//print_matrix_2D(matrixParallelizationMathod2, size);
+	
+		cout << "Assignment 3 in parallelization mode (METHOD 3) Computation Time: " << runtimeInParallelMode3 << " seconds" << endl;;
+	#pragma endregion
 
 
 #pragma region Results and Conclusions
 	double differnce = runtime - runtimeInParallelMode1;
-	double differnce2 = runtime - runtimeInParallelMode2;
+	//double differnce2 = runtime - runtimeInParallelMode2;
 	cout << "Diferences betweeen modes (Sequential vs Paralelization[Method 1] are: " << abs(differnce) << " seconds in favor of " << (differnce > 0 ? "parallel " : "sequential ") << "mode." << endl;
-	cout << "Diferences betweeen modes (Sequential vs Paralelization[Method 2] are: " << abs(differnce2) << " seconds in favor of " << (differnce2 > 0 ? "parallel " : "sequential ") << "mode." << endl;
+	//cout << "Diferences betweeen modes (Sequential vs Paralelization[Method 2] are: " << abs(differnce2) << " seconds in favor of " << (differnce2 > 0 ? "parallel " : "sequential ") << "mode." << endl;
 
 	cout << "Result of computed matrices (Sequential vs Paralelization_Method_1 seems " << (compareMatrices(matrixSequential, matrixParallelizationMathod1, size, 10) == 1 ? "valid " : "NOT valid ") << endl;
 	//cout << "Result of computed matrices (Sequential vs Paralelization_Method_2 seems " << (compareMatrices(matrixSequential, matrixParallelizationMathod2, size, 10) == 1 ? "valid " : "NOT valid ") << endl;
@@ -421,7 +425,10 @@ void print_matrix_2D(float** matrix, int size)
 		for (int j = 0; j < size; j++)
 		{
 			//print out the cell
-			cout << left << setw(9) << setprecision(3) << matrix[i][j] << left << setw(9);
+			std::stringstream stream;
+			stream << std::fixed << std::setprecision(4) << matrix[i][j];
+			std::string s = stream.str();
+			cout << left << setw(9) << setprecision(3) << /*matrix[i][j]*/ s << left << setw(9);
 		}
 		//new line when ever row is done
 		cout << left << setw(9) << setprecision(3) << "|" << left << setw(9);
