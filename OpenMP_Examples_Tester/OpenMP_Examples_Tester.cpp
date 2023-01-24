@@ -112,74 +112,6 @@ void assignment2_parallel2(float** a, int size, int scheduleThreshold)
 
 }
 
-double float_stencil9(int size) {
-
-	int i, j, iter;
-	int n = size - 2;
-	float fac = 100.0;
-
-	/* Work buffers, with halos */
-	float* a0 = (float*)malloc(sizeof(float) * size * size);
-	float* a1 = (float*)malloc(sizeof(float) * size * size);
-
-	if (a0 == NULL || a1 == NULL) {
-		/* Something went wrong in the memory allocation here, fail gracefully */
-		printf("9-point Single Precision Stencil Error: Unable to allocate memory\n");
-	}
-	if (size >= 46090) {
-		printf("The size has exceeded the maximum value!\n");
-		return 0.0;
-	}
-
-	/* use definition of the Assignment 2 for filing out the matrix with numbers. So, filling interior first row with 250 and first column with 150 */
-#pragma omp parallel for private(j)
-	for (i = 0; i < size; i++) {
-		for (j = 0; j < size; j++) {
-			if (i == 0 & j == 0)
-				a0[i * size + j] = 0.0;
-			else if (i == 0)
-				a0[i * size + j] = 250.0;
-			else if (j == 0)
-				a0[i * size + j] = 150.0;
-			else
-				a0[i * size + j] = 0.0;
-		}
-	}
-
-
-	double runtimeInParallelMode3 = omp_get_wtime();
-#pragma omp parallel
-	{
-#pragma omp for private(j)
-		for (i = 1; i < n + 1; i++) {
-			for (j = 1; j < n + 1; j++) {
-				a1[i * size + j] = (
-					abs(sin(a0[i * size + (j - 1)])) +
-					abs(sin(a0[(i - 1) * size + j])) +
-					abs(sin(a0[(i - 1) * size + (j - 1)]))
-
-					) * fac;
-			}
-		}
-
-#pragma omp for private(j)
-		for (i = 1; i < n + 1; i++) {
-			for (j = 1; j < n + 1; j++) {
-				a0[i * size + j] = a1[i * size + j];
-			}
-		}
-	}
-
-	runtimeInParallelMode3 = omp_get_wtime() - runtimeInParallelMode3;
-	//printArrayAsMatrix(a0, size);
-
-
-	free(a0);
-	free(a1);
-	return runtimeInParallelMode3;
-
-}
-
 int main(int argc, char** argv)
 {
 	//size of matrix
@@ -222,7 +154,7 @@ int main(int argc, char** argv)
 
 	omp_set_num_threads(numberOfThreads);
 	if (omp_get_thread_num() == 0) {
-		printf("Running on Host with %d OpenMP thread(s):\n\n", omp_get_num_threads());
+		printf("Running on Host with %d OpenMP thread(s):\n\n", numberOfThreads);
 	}
 #pragma endregion
 
@@ -244,35 +176,26 @@ int main(int argc, char** argv)
 
 
 #pragma region Parallelization METHOD 1
-	do Computation
+	//do Computation
 	double runtimeInParallelMode1 = omp_get_wtime();
 	assignment2_parallel(matrixParallelizationMathod1, size, scheduleThreshold);
 	runtimeInParallelMode1 = omp_get_wtime() - runtimeInParallelMode1;
 
-	cout << "Matrix from method 1: " << endl;
-	print_matrix_2D(matrixParallelizationMathod1, size);
+	/*cout << "Matrix from method 1: " << endl;
+	print_matrix_2D(matrixParallelizationMathod1, size);*/
 
 	cout << "Assignment 2 in parallelization mode (METHOD 1) Computation Time: " << runtimeInParallelMode1 << " seconds" << endl;;
 #pragma endregion
 	#pragma region Parallelization METHOD 2
 		//do Computation
 		double runtimeInParallelMode2 = omp_get_wtime();
-		assignment2_parallel2(matrixParallelizationMathod2, size, scheduleThreshold);
+		//assignment2_parallel2(matrixParallelizationMathod2, size, scheduleThreshold);
 		runtimeInParallelMode2 = omp_get_wtime() - runtimeInParallelMode2;
 	
 		//cout << "Matrix from method 2: " << endl;
 		//print_matrix_2D(matrixParallelizationMathod2, size);
 	
-		cout << "Assignment 2 in parallelization mode (METHOD 2) Computation Time: " << runtimeInParallelMode2 << " seconds" << endl;;
-	#pragma endregion
-	#pragma region Parallelization METHOD 3
-		//do Computation
-		double runtimeInParallelMode3 = float_stencil9(size);
-	
-		//cout << "Matrix from method 2: " << endl;
-		//print_matrix_2D(matrixParallelizationMathod2, size);
-	
-		cout << "Assignment 3 in parallelization mode (METHOD 3) Computation Time: " << runtimeInParallelMode3 << " seconds" << endl;;
+		//cout << "Assignment 2 in parallelization mode (METHOD 2) Computation Time: " << runtimeInParallelMode2 << " seconds" << endl;;
 	#pragma endregion
 
 
@@ -324,18 +247,6 @@ void get_matrix_size(int& size)
 			error = false;
 		}
 	}
-
-	//while ((N != 1 && error == true) || size < 2 || size % 2 != 0) {
-	//	while ((temp = getchar()) != EOF && temp != '\n');
-	//	SetColor(4);
-	//	cout << "Invalid input... Please enter a number larger or equal to 2 and is multiplication of 2: " << endl;
-	//	SetColor(7);
-	//	fflush(stdout);
-	//	N = scanf_s("%d", &size);
-	//	if (size > 0) {
-	//		error = false;
-	//	}
-	//}
 }
 
 
